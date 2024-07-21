@@ -152,6 +152,13 @@ class MyAddonProperties(bpy.types.PropertyGroup):
     max = 1
     )
     
+    plot_enum : bpy.props.EnumProperty(
+        name = 'Plot library',
+        description = 'select the python library to be used for plotting',
+        items = [
+            ('OP1' , 'Matplotlib' , 'Standard. Takes less time'),
+            ('OP2' , 'Mayavi' , 'Looks better. Takes longer time'),])
+            
 class MESH_OT_properties(bpy.types.Operator):
     bl_idname = 'mesh.properties'
     bl_label = 'add properties'
@@ -163,19 +170,24 @@ class MESH_OT_properties(bpy.types.Operator):
         ys = scene.my_addon_properties.yield_stress
         conv = scene.my_addon_properties.convergence
         op = scene.my_addon_properties.minimum_opalescence
+        plop = scene.my_addon_properties.plot_enum
         #slfwt = scene.my_addon_properties.slfwt
 
         #if slfwt == False:
             #de = 0.0
+        pl = 0
+        if plop == 'OP1':
+            pl = 0
+        else: 
+            pl = 1
         prop_path = os.path.join(dir_path, 'truss_properties.csv')
         with open(prop_path, 'w') as prop:
-            prop.write(f'{y},{a},{ys},{conv},{op}')
+            prop.write(f'{y},{a},{ys},{conv},{op},{pl}')
         return {'FINISHED'}
     
 
+
     
-
-
 class MESH_OT_mesh_creator(bpy.types.Operator):
     """adds the vertex and edge data into the list"""
     bl_idname = 'mesh.meshdata_add'
@@ -372,7 +384,7 @@ class VIEW3D_PT_FEA_panel_1(bpy.types.Panel):
     bl_label = 'PRE-PROCESSING'
     
     #ADDING THE CATEGORY
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     
     def draw(self,context):
         pass
@@ -385,7 +397,7 @@ class VIEW3D_PT_preprocessor(bpy.types.Panel):
     bl_label ='MATERIAL PROERTIES'
     
     #ADDING THE CATEGORY
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     
     def draw(self,context):
         scene = context.scene
@@ -404,15 +416,17 @@ class VIEW3D_PT_preprocessor(bpy.types.Panel):
         
         row = box.row()
         row.prop(addon_props, 'yield_stress')
-    
-    
+        
         row = box.row()
         row.label(text = 'General')
         row = box.row()
         row.prop(addon_props, 'convergence')       
     
         row = box.row()
-        row.prop(addon_props, 'minimum_opalescence')  
+        row.prop(addon_props, 'minimum_opalescence') 
+        
+        row= box.row()
+        row.prop(addon_props, 'plot_enum')
         
         row = box.row()
         row.operator('mesh.properties', text = 'UPDATE')
@@ -428,7 +442,7 @@ class VIEW3D_PT_mesher(bpy.types.Panel):
     bl_label = 'MESHING'
     
     #ADDING THE CATEGORY
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     
     def draw(self,context):
         scene = context.scene
@@ -490,14 +504,14 @@ class VIEW3D_PT_conditions(bpy.types.Panel):
     bl_label ='LOADS'
     
     #ADDING THE CATEGORY
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     
     def draw(self,context):
         pass
         
         
 class VIEW3D_PT_boundcon(bpy.types.Panel):
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     bl_space_type = 'VIEW_3D'  #3d viewport
     bl_region_type = 'UI'
     #bl_context = ".objectmode"  # dot on purpose (access from topbar)
@@ -543,7 +557,7 @@ class VIEW3D_PT_boundcon(bpy.types.Panel):
             
             
 class VIEW3D_PT_forces(bpy.types.Panel):
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     bl_space_type = 'VIEW_3D'  #3d viewport
     bl_region_type = 'UI'
     #bl_context = ".objectmode"  # dot on purpose (access from topbar)
@@ -596,7 +610,7 @@ class VIEW3D_PT_solverpanel(bpy.types.Panel):
     bl_label ='SOLUTION'
     
     #ADDING THE CATEGORY
-    bl_category = 'FrameFEA'
+    bl_category = 'TrussFEA'
     
     def draw(self,context):  
         scene = context.scene
