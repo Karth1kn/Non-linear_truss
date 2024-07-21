@@ -1,3 +1,4 @@
+#INSTALL MAYAVI AND MATPLOTLIB
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg as slin
@@ -7,6 +8,7 @@ import time
 import os
 import sys
 from scipy.linalg import solveh_banded
+from mayavi import mlab
 
 def timer(func):
     def wrapper(*args, **kwargs):
@@ -45,6 +47,7 @@ with open(coord_path, 'r') as file:
                 x_ele = [val_array[k[0],0],val_array[k[1],0]]
                 y_ele = [val_array[k[0],1],val_array[k[1],1]]
                 z_ele = [val_array[k[0],2],val_array[k[1],2]]
+                line1 = mlab.plot3d(x_ele, y_ele, z_ele, color=(0,0,0))
 
     except Exception:
         print('error')
@@ -94,6 +97,7 @@ with open(prop_path,'r')as fl:
     yield_stress = props[2]
     tolerance = props[3]
     min_op = props[4]
+    plop = props[5]
 
 const = youngs_modulus*area
 ln = lambda n1,n2,type: (( ( type[(n2),0] - type[(n1),0] )**2 + ( type[(n2),1] - type[(n1),1] )**2 + ( type[(n2),2] - type[(n1),2] )**2 )**0.5)
@@ -141,7 +145,7 @@ def local_stiff_mat(element, p, cordt, dcordt):
 
     return matrix
 
-@timer
+
 def global_stiff_mat(coord_list, cordt, dcordt):
     matrix= np.zeros([len(cordt)*3,len(cordt)*3])
     global e_len
@@ -157,7 +161,8 @@ def global_stiff_mat(coord_list, cordt, dcordt):
     np.set_printoptions(precision=2)
     return matrix
 
-fig = plt.figure(figsize=(10,10))
+#fig = plt.figure(figsize=(10,10))
+fig = plt.figure(figsize=(25,15), constrained_layout=True)
 ax = fig.add_subplot(111, projection= '3d')
 
 def color_plotter(coordinate, strs, alp):
@@ -171,18 +176,33 @@ def color_plotter(coordinate, strs, alp):
         d = np.array([ks[0,1],ks[1,1]])
         e = np.array([ks[0,2],ks[1,2]])
 
-        fos= strs[j]/yield_stress
+        fos= (strs[j]/10e6)/(yield_stress)
         #print(fos)
         if fos**2>=1:
             r,g,b,a = 0 ,1 ,0 ,1
-            ax.plot3D(c,d,e,color=(r,g,b,a), alpha = alp)
+            if plop ==0:
+                ax.plot3D(c,d,e,color=(r,g,b,a))
+            else: 
+                line1 = mlab.plot3d(c,d,e,color=(r,g,b))
+                line1.actor.property.opacity = alp
+
         elif fos<=0:
             r,g,b,a = 1+fos, 1+fos, 1,  1
-            ax.plot3D(c,d,e,color=(r,g,b,a), alpha = alp)
+            if plop ==0:
+                ax.plot3D(c,d,e,color=(r,g,b,a))
+            else: 
+                line1 = mlab.plot3d(c,d,e,color=(r,g,b))
+                line1.actor.property.opacity = alp
+
         elif fos>0:
             r,g,b,a= 1, 1-fos, 1-fos,  1         
-            ax.plot3D(c,d,e,color=(r,g,b,a), alpha = alp)
+            if plop ==0:
+                ax.plot3D(c,d,e,color=(r,g,b,a))
+            else: 
+                line1 = mlab.plot3d(c,d,e,color=(r,g,b))
+                line1.actor.property.opacity = alp
 
+    #main_sequence()
 
     ax.set_facecolor('black')
     ax.grid(visible=False)
@@ -247,7 +267,7 @@ print(bandwidth)
 
 
 
-
+@timer
 def main_sequence():
     dcord = np.array([i for i in cord])
     force_mat=force_matrix(0,[0,0,0])
@@ -302,6 +322,8 @@ def alpha_range1(min,n,x, pow):
 
 
 
+
+
 if __name__ == "__main__":
     # Check if the script is run as the main program
     if len(sys.argv) > 1:
@@ -311,29 +333,43 @@ if __name__ == "__main__":
             displacements, stresses, tol_lst = main_sequence()
             iterate = len(tol_lst)
             for g in range(iterate):
-                rng = alpha_range1(min_op, iterate, g+1, 4)
+                rng = alpha_range1(min_op, iterate, g+1, 1)
                 color_plotter(displacements[g],stresses[g] , rng)
 
                 print(rng)
+            if plop ==0:
+                plt.show()
+            else: 
+                mlab.show()
             print(f'Plotting time: {t4-t3}')
             convergence(tol_lst)
-            plt.show()
+            #plt.show()
             
 
 def sparser():
     fig1,ax1 = plt.subplots()
-    for q in con:
-        ax1.scatter(q[0], q[1], s=1, color = 'blue')
-    #print(f'Sparsity = {1- (len(oy)/len(cord)**2)}')
-    ax1.annotate(f'Sparsity = {1- (len(con)/len(cord)**2)}',(int(len(cord)/2), 0),color= 'white')
-    #ax1.gca().invert_yaxis()
-    ax1.axis("equal")
+    
+    oy = []
+    global_stiff_matrix= global_stiff_mat(con,cord, cord)
+    for q in range(len(cord)):
+        for w in range(len(cord)):
+            if not np.array_equal(global_stiff_matrix[3*q:3*q+3 , 3*w:3*w+3] , np.zeros([3,3])):
+                oy.append([w,q])
+    ax1.scatter(np.array(oy)[:,0] , np.array(oy)[:,1],s=1)
+    print(f'Sparsity = {1- (len(oy)/len(cord)**2)}')
+    plt.annotate(f'Sparsity = {1- (len(oy)/len(cord)**2)})',(int(len(cord)/2), 0),color= 'white')
+    jk=0
+    plt.xlim(0-jk,len(cord)+jk)
+    plt.ylim(0-jk,len(cord)+jk)
+    plt.gca().invert_yaxis()
+    plt.axis('equal')
+    plt.show()
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         function_name = sys.argv[1]
         if function_name == "sparser":
             sparser()
-            plt.show()
 
 
